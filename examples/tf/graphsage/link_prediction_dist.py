@@ -75,99 +75,20 @@ def train(config, graph):
   if config['job_name'] == 'worker': # also graph-learn client in this example.
     trainer.train()
     embs = trainer.get_node_embedding()
-    np.save(config['emb_save_dir'], embs)
+    np.save(config['emb_save_dir'] + str(task_index), embs)
+    print("embds shape:", embs.shape)
+    # ready_num = 0
+    # while True:
+    #     if ready_num == worker_num:
+    #         break
+    #     if os.path.exists('./ready_status_' + str(ready_num)):
+    #         ready_num = ready_num + 1
+    #    else:
+    #         time.sleep(1)
+    # print("start to test...")
+    # test(config, graph, worker_num)
   else:
     trainer.join()
-
-
-from sklearn.metrics.pairwise import cosine_similarity
-def test(config, graph):
-  sampler_node = graph.node_sampler(config['node_type'], 1)
-  nodes_set = set(sampler_node.get().ids)
-  for i in range(10):
-      nodes_list = sampler_node.get().ids
-      nodes_set_tmp = set(nodes_list)
-      nodes_set = nodes_set | nodes_set_tmp
-  id_node = list(sorted(nodes_set))
-  node_id = {}
-  for i in range(len(id_node)):
-      node_id[id_node[i]] = i
-
-  # print(id_node)
-  # print(node_id)
-
-  test_count = 1.0
-  find_count = 0.0
-  embs = np.load(config['emb_save_dir'] + ".npy")
-  sampler_edge = graph.edge_sampler(config['edge_type'], 1000)
-  edges_list = sampler_edge.get()
-  src_ids = edges_list.src_ids
-  dst_ids = edges_list.dst_ids
-  for j in range(len(src_ids)):
-      if src_ids[j] in node_id and dst_ids[j] in node_id:
-          vec_a = embs[node_id[src_ids[j]], :]
-          vec_b = embs[node_id[dst_ids[j]], :]
-          num = float(np.sum(vec_a * vec_b))
-          denom = np.linalg.norm(vec_a) * np.linalg.norm(vec_b)
-          cos = num / denom
-          cos_sim = 0.5 + 0.5 * cos
-          test_count = test_count + 1
-          if cos_sim >= 0.1:
-              find_count = find_count + 1
-
-
-  acc = find_count/test_count
-  print("Evaluation Results:")
-  print("Predicted Edges in Dataset: %d / %d; Precision: %4f" %(find_count, test_count, acc))
-
-  '''
-  node_list = {}
-  id_list = {}
-  read_n = open(config['dataset_folder'] + 'node_map', 'r')
-  n_lines = read_n.readlines()
-  for i in range(1, len(n_lines)):
-      n_l  = n_lines[i].split('\t')
-      node_list[int(n_l[0])] = int(n_l[1])
-      id_list[int(n_l[1])] = int(n_l[0])
-  read_n.close()
-  node_num = len(node_list) - 1
-  embs = np.load(config['emb_save_dir'] + ".npy")
-  find_count = 0.0
-  read_e = open(config['dataset_folder'] + 'edge_table_test', 'r')
-  e_lines = read_e.readlines()
-  edge_count = float(len(e_lines))
-  for j in range(1, len(e_lines)):
-      e_l = e_lines[j].split('\t')
-      vec_a = embs[node_list[int(e_l[0])], :]
-      vec_b = embs[node_list[int(e_l[1])], :]
-      num = float(np.sum(vec_a * vec_b))
-      denom = np.linalg.norm(vec_a) * np.linalg.norm(vec_b)
-      cos = num / denom
-      cos_sim = 0.5 + 0.5 * cos
-      if cos_sim >= 0.98:
-          find_count = find_count + 1.0
-  read_e.close()
-  nofind_count = 0.0
-  noedge_count = 10000
-  for i in range(noedge_count):
-      n1 = np.random.randint(100, 9000)
-      n2 = np.random.randint(100, 9000)
-      vec_a = embs[n1, :]
-      vec_b = embs[n2, :]
-      num = float(np.sum(vec_a * vec_b))
-      denom = np.linalg.norm(vec_a) * np.linalg.norm(vec_b)
-      cos = num / denom
-      cos_sim = 0.5 + 0.5 * cos
-      if cos_sim <= 0.98:
-          nofind_count = nofind_count + 1.0
-  acc = (find_count + nofind_count) / (edge_count + noedge_count)
-  #acc = 2 * find_count / (node_num * (node_num - 1))
-  #fs = rec * acc / (rec + acc)
-  print("Evaluation Results:")
-  #print("Predicted Edges: %d / %d; Non-Predicted Edges: %d / %d" %(find_count, edge_count, nofind_count, noedge_count) )
-  print("Accurately Predicted Edges in Testing Dataset: %d / %d" %(find_count + nofind_count, edge_count + noedge_count) )
-  print("Precision: %2f" %(acc))
-  '''
 
 
 def main():
@@ -192,7 +113,7 @@ def main():
             'emb_save_dir': './id_emb'}
 
     handle = sys.argv[1]
-    task_index = int(sys.argv[2])
+    index = int(sys.argv[2])
     debug = sys.argv[3]
     s = base64.b64decode(handle).decode('utf-8')
     obj = json.loads(s)
@@ -202,24 +123,25 @@ def main():
     config['edge_type'] = edge_type
     config['train_node_type'] = node_type
     config['client_count'] = obj['client_count']
-    config['task_index'] = task_index
 
     # use the first half as worker, others as server
     servers = obj['server'].split(',')
     mid = len(servers) // 2
-    config['ps_hosts'] = servers[0:mid]
-    print('ps_hosts', config['ps_hosts'])
-    config['worker_hosts'] = servers[mid:]
+    config['worker_hosts'] = servers[0:mid]
+    config['ps_hosts'] = servers[mid:]
     print('worker_hosts', config['worker_hosts'])
-    if config['task_index'] < mid:
+    print('ps_hosts', config['ps_hosts'])
+    if index < 2:
         config['job_name'] = 'worker'
+        config['task_index'] = index
     else:
         config['job_name'] = 'server'
+        config['task_index'] = index - 2
 
     if config['job_name'] == 'server':
-        g = gl.init_graph_from_handle(handle, task_index)
+        g = gl.init_graph_from_handle(handle, config['task_index'])
     else:
-        g = gl.get_graph_from_handle(handle, worker_index=task_index, worker_count=config['client_count'])
+        g = gl.get_graph_from_handle(handle, worker_index=config['task_index'], worker_count=config['client_count'])
 
     gl.set_tracker_mode(0)
 
@@ -245,9 +167,6 @@ def main():
             f.write(res)
 
     train(config, g)
-    if config['job_name'] == 'worker':
-        test(config, g)
-
 
 if __name__ == "__main__":
     main()
