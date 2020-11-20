@@ -50,13 +50,14 @@ def train(config, graph):
                      config['class_num'],
                      config['features_num'],
                      config['batch_size'],
+                     val_batch_size=config['val_batch_size'],
+                     test_batch_size=config['test_batch_size'],
                      categorical_attrs_desc=config['categorical_attrs_desc'],
                      hidden_dim=config['hidden_dim'],
                      in_drop_rate=config['in_drop_rate'],
                      neighs_num=config['neighs_num'],
                      full_graph_mode=config['full_graph_mode'],
                      unsupervised=config['unsupervised'],
-                     neg_num=config['neg_num'],
                      agg_type=config['agg_type'],
                      node_type=config['node_type'],
                      edge_type=config['edge_type'],
@@ -129,6 +130,8 @@ def main():
     mid = len(servers) // 2
     config['worker_hosts'] = servers[0:mid]
     config['ps_hosts'] = servers[mid:]
+    obj['server'] = '.'.join(config['ps_hosts'])
+    obj['client'] = '.'.join(config['worker_hosts'])
     print('worker_hosts', config['worker_hosts'])
     print('ps_hosts', config['ps_hosts'])
     if index < 2:
@@ -139,12 +142,11 @@ def main():
         config['task_index'] = index - 2
 
     if config['job_name'] == 'server':
-        g = gl.init_graph_from_handle(handle, config['task_index'])
+        g = gl.init_graph_from_handle(obj, config['task_index'])
     else:
-        g = gl.get_graph_from_handle(handle, worker_index=config['task_index'], worker_count=config['client_count'])
+        g = gl.get_graph_from_handle(obj, worker_index=config['task_index'], worker_count=config['client_count'])
 
-    gl.set_tracker_mode(0)
-
+    """
     if debug == 'True' and config['job_name'] == 'worker':
         # s = g.node_sampler("train", batch_size=64)
         # nodes = s.get()
@@ -165,6 +167,7 @@ def main():
         print('topology', res)
         with open("topology.txt", "w") as f:
             f.write(res)
+    """
 
     train(config, g)
 
