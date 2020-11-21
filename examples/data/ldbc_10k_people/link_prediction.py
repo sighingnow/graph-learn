@@ -34,13 +34,13 @@ def load_graph(config):
   node_type = config['node_type']
   edge_type = config['edge_type']
   g = gl.Graph()\
-        .node(dataset_folder + "node_table_50", node_type=node_type,
-              decoder=gl.Decoder(attr_types=["float", "string", "string", "string", "string", "string"]))\
-        .edge(dataset_folder + "edge_table_50",
+        .node(dataset_folder + "node_table_degree", node_type=node_type,
+              decoder=gl.Decoder(attr_types=["float"]*100))\
+        .edge(dataset_folder + "edge_table",
               edge_type=(node_type, node_type, edge_type),
-              decoder=gl.Decoder(attr_types=["float"], weighted=False), directed=True)\
-        .node(dataset_folder + "node_table_50", node_type="train",
-              decoder=gl.Decoder(attr_types=["float", "string", "string", "string", "string", "string"]))
+              decoder=gl.Decoder(weighted=False), directed=True)\
+        .node(dataset_folder + "node_table_degree", node_type="train",
+              decoder=gl.Decoder(attr_types=["float"]*100))
   return g
 
 def train(config, graph):
@@ -63,46 +63,58 @@ def train(config, graph):
                                   config['learning_algo'],
                                   config['learning_rate'],
                                   config['weight_decay']))
+  print("start to train...")
   trainer.train()
   embs = trainer.get_node_embedding()
-  # print(embs.shape)
+  print("shape:", embs.shape)
   np.save(config['emb_save_dir'], embs)
 
 from sklearn.metrics.pairwise import cosine_similarity
 def test(config, graph):
 
-  sampler_node = graph.node_sampler(config['node_type'], 1)
-  nodes_set = set(sampler_node.get().ids)
-  for i in range(10):
-      nodes_list = sampler_node.get().ids
-      nodes_set_tmp = set(nodes_list)
-      nodes_set = nodes_set | nodes_set_tmp
-
-  id_node = list(sorted(nodes_set))
-  node_id = {}
-  for i in range(len(id_node)):
-      node_id[id_node[i]] = i
+  #sampler_node = graph.node_sampler(config['node_type'], 100)
+  #nodes_set = set(sampler_node.get().ids)
+  #nodes_set_tmp = nodes_set
+  #for i in range(10):
+  #    nodes_list = sampler_node.get().ids
+  #    nodes_set = set(nodes_list)
+  #    print(nodes_list)
+      #nodes_set_tmp = set(nodes_list)
+  #    nodes_set = nodes_set | nodes_set_tmp
+  #    nodes_set_tmp = nodes_set
+  #print("nodes_set size:",len(nodes_set)) 
+ 
+  #id_node = list(sorted(nodes_set))
+  #node_id = {}
+  #for i in range(len(id_node)):
+  #    node_id[id_node[i]] = i
 
   # print(id_node)
   # print(node_id)
 
-  test_count = 1.0
+  test_count = 0.0
   find_count = 0.0
   embs = np.load(config['emb_save_dir'] + ".npy")
+  id_map = {}
+  for i in range(embs.shape[0]):
+      id_map[embs[i][0]] = i
   sampler_edge = graph.edge_sampler(config['edge_type'], 1000)
   edges_list = sampler_edge.get()
   src_ids = edges_list.src_ids
   dst_ids = edges_list.dst_ids
   for j in range(len(src_ids)):
-      if node_id.has_key(src_ids[j]) and node_id.has_key(dst_ids[j]):
-          vec_a = embs[node_id[src_ids[j]], :]
-          vec_b = embs[node_id[dst_ids[j]], :]
+      if True:
+          vec_a = embs[id_map[src_ids[j]]][1:]
+          vec_b = embs[id_map[dst_ids[j]]][1:]
           num = float(np.sum(vec_a * vec_b))
           denom = np.linalg.norm(vec_a) * np.linalg.norm(vec_b)
-          cos = num / denom
+          if denom == 0:
+              cos = 0
+          else:
+              cos = num / denom
           cos_sim = 0.5 + 0.5 * cos
           test_count = test_count + 1
-          if cos_sim >= 0.98:
+          if cos_sim >= 0.7:
               find_count = find_count + 1
   
   acc = find_count/test_count
@@ -162,12 +174,12 @@ def test(config, graph):
   '''
 
 def main():
-  config = {'dataset_folder': '../../data/ldbc_50/',
+  config = {'dataset_folder': '../ldbc_10k_people/',
             'class_num': 32,
-            'features_num': 1,
-            'batch_size': 5, # 10
+            'features_num': 100,
+            'batch_size': 200, # 10
             'categorical_attrs_desc': '',
-            'hidden_dim': 256,
+            'hidden_dim': 50,
             'in_drop_rate': 0.5,
             'hops_num': 2,
             'neighs_num': [10, 20],
@@ -188,6 +200,7 @@ def main():
   g.init(server_id=0, server_count=1, tracker=TRACKER_PATH)
   train(config, g)
   test(config, g)
+  g.close()
 
 
 if __name__ == "__main__":
