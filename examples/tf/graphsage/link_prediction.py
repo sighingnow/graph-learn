@@ -23,6 +23,7 @@ import json
 import sys
 import numpy as np
 import graphlearn as gl
+import tensorflow as tf
 
 from graph_sage import GraphSage
 
@@ -179,7 +180,7 @@ def main():
   handle_str = sys.argv[1]
   s = base64.b64decode(handle_str).decode('utf-8')
   handle = json.loads(s)
-  handle['pod_index'] = sys.argv[2]
+  handle['pod_index'] = int(sys.argv[2])
   node_type = handle['node_schema'][0].split(':')[0]
   edge_type = handle['edge_schema'][0].split(':')[1]
 

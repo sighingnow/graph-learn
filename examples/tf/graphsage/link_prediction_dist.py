@@ -73,6 +73,7 @@ def train(config, graph):
                                  config['learning_algo'],
                                  config['learning_rate'],
                                  config['weight_decay']))
+  task_index = config['task_index']
   if config['job_name'] == 'worker': # also graph-learn client in this example.
     trainer.train()
     embs = trainer.get_node_embedding()
@@ -130,18 +131,21 @@ def main():
     mid = len(servers) // 2
     config['worker_hosts'] = servers[0:mid]
     config['ps_hosts'] = servers[mid:]
-    obj['server'] = '.'.join(config['ps_hosts'])
-    obj['client'] = '.'.join(config['worker_hosts'])
+    gl_hosts = []
+    for index, ps_host in enumerate(config['ps_hosts']):
+
+    obj['server'] = ','.join(config['ps_hosts'])
+    obj['client'] = ','.join(config['worker_hosts'])
     print('worker_hosts', config['worker_hosts'])
     print('ps_hosts', config['ps_hosts'])
     if index < 2:
         config['job_name'] = 'worker'
         config['task_index'] = index
     else:
-        config['job_name'] = 'server'
+        config['job_name'] = 'ps'
         config['task_index'] = index - 2
 
-    if config['job_name'] == 'server':
+    if config['job_name'] == 'ps':
         g = gl.init_graph_from_handle(obj, config['task_index'])
     else:
         g = gl.get_graph_from_handle(obj, worker_index=config['task_index'], worker_count=config['client_count'])
