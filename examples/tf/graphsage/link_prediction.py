@@ -137,8 +137,13 @@ def train_dist(config, graph):
 
 def local_training(handle, config):
   g = gl.get_graph_from_handle(handle, worker_index=0, worker_count=1, standalone=True)
-  train_local(config, g)
-  test_local(config, g)
+  nodes = g.V("person").batch(10).emit()
+  print('id', nodes.ids)
+  print('i_s', nodes.int_attrs)
+  print('f_s', nodes.float_attrs)
+  print('s_s', nodes.string_attrs)
+  # train_local(config, g)
+  # test_local(config, g)
   g.close()
 
 
@@ -185,7 +190,7 @@ def main():
   edge_type = handle['edge_schema'][0].split(':')[1]
 
   config = {'class_num': 32,
-            'features_num': 2,
+            'features_num': 1,
             'batch_size': 10, # 10
             'val_batch_size': 10,
             'test_batch_size': 10,
