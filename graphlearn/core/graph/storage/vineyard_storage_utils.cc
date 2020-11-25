@@ -116,10 +116,13 @@ get_all_outgoing_neighbor_nodes(std::shared_ptr<gl_frag_t> const &frag,
   using nbr_unit_t = vineyard::property_graph_utils::NbrUnit<gl_frag_t::vid_t,
                                                              gl_frag_t::eid_t>;
   // FIXME extend Array to support element_size and element_offset.
+  auto v = vertex_t{static_cast<uint64_t>(src_id)};
+  if (!frag->IsInnerVertex(v)) {
+    return Array<IdType>();
+  }
   std::vector<const IdType *> values;
   std::vector<int32_t> sizes;
-  auto neighbor_list = frag->GetOutgoingAdjList(
-      vertex_t{static_cast<uint64_t>(src_id)}, edge_label);
+  auto neighbor_list = frag->GetOutgoingAdjList(v, edge_label);
   values.emplace_back(
       reinterpret_cast<const IdType *>(neighbor_list.begin_unit()));
   sizes.emplace_back(neighbor_list.Size());
@@ -133,10 +136,13 @@ get_all_outgoing_neighbor_edges(std::shared_ptr<gl_frag_t> const &frag,
   using nbr_unit_t = vineyard::property_graph_utils::NbrUnit<gl_frag_t::vid_t,
                                                              gl_frag_t::eid_t>;
   // FIXME extend Array to support element_size and element_offset.
+  auto v = vertex_t{static_cast<uint64_t>(src_id)};
+  if (!frag->IsInnerVertex(v)) {
+    return Array<IdType>();
+  }
   std::vector<const IdType *> values;
   std::vector<int32_t> sizes;
-  auto neighbor_list = frag->GetOutgoingAdjList(
-      vertex_t{static_cast<uint64_t>(src_id)}, edge_label);
+  auto neighbor_list = frag->GetOutgoingAdjList(v, edge_label);
   values.emplace_back(
       reinterpret_cast<const IdType *>(neighbor_list.begin_unit()));
   sizes.emplace_back(neighbor_list.Size());
@@ -148,7 +154,8 @@ IdType get_edge_src_id(std::shared_ptr<gl_frag_t> const &frag,
                        label_id_t const edge_label,
                        std::vector<IdType> const &src_ids, IdType edge_id) {
 #ifndef NDEBUG
-  if (edge_id < src_ids.Size()) {
+  std::cerr << "\nget_edge_src_id, size=" << src_ids.size() << ", edge_id=" << edge_id << ", aa=" << src_ids[edge_id];
+  if (edge_id < src_ids.size()) {
     return src_ids[edge_id];
   } else {
     throw std::runtime_error("Not implemented since unused");
@@ -162,7 +169,8 @@ IdType get_edge_dst_id(std::shared_ptr<gl_frag_t> const &frag,
                        label_id_t const edge_label,
                        std::vector<IdType> const &dst_ids, IdType edge_id) {
 #ifndef NDEBUG
-  if (edge_id < dst_ids.Size()) {
+  std::cerr << "\nget_edge_dst_id, size=" << dst_ids.size() << ", edge_id=" << edge_id << ", aa=" << dst_ids[edge_id];
+  if (edge_id < dst_ids.size()) {
     return dst_ids[edge_id];
   } else {
     throw std::runtime_error("Not implemented since unused");
@@ -338,6 +346,7 @@ SideInfo *frag_node_side_info(std::shared_ptr<gl_frag_t> const &frag,
   }
   side_info->type = std::to_string(node_label);
   side_info_cache[frag->id()][node_label] = side_info;
+  std::cerr << "finish node sideinfo " << frag->id();
   return side_info.get();
 }
 
