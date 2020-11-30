@@ -132,7 +132,7 @@ def main():
   config = {'dataset_folder': '',
             'class_num': 16, # output dimension
             'features_num': 128, # 128 dimension + year + id + kcore + page_rank
-            'batch_size': 500,
+            'batch_size': 1000,
             'categorical_attrs_desc': '',
             'hidden_dim': 256,
             'in_drop_rate': 0.5,
