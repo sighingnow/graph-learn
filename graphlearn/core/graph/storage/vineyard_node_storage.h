@@ -66,7 +66,7 @@ public:
     side_info_ = frag_node_side_info(frag_, node_label_);
 
     auto vtable = frag_->vertex_data_table(node_label_);
-    init_table_accessors(vtable, 0, vtable->num_columns() - 1, i32_indexes_,
+    init_table_accessors(vtable, 0, vtable->num_columns() - 5, i32_indexes_,
                          i64_indexes_, f32_indexes_, f64_indexes_, s_indexes_,
                          ls_indexes_, vertex_table_accessors_);
 
